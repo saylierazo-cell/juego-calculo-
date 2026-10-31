@@ -1,0 +1,1748 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>La Mazmorra del Cálculo: La Espada y las 4 Gemas Elementales</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    body {
+      background: #090a14;
+      color: #fff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding: 10px 0;
+    }
+
+    #game-container {
+      position: relative;
+      width: 920px;
+      max-width: 96vw;
+      aspect-ratio: 920 / 540;
+      max-height: 78vh;
+      box-shadow: 0 15px 40px rgba(0,0,0,0.9), 0 0 0 3px #e94560, 0 0 25px rgba(233,69,96,0.35);
+      border-radius: 14px;
+      overflow: hidden;
+      background: #161b2e;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      image-rendering: -webkit-optimize-contrast;
+      image-rendering: pixelated;
+    }
+
+    /* HUD Superior */
+    #hud {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 8px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 800;
+      font-size: 14px;
+      text-shadow: 2px 2px 0 #000, -1px -1px 0 #000;
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .hud-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .hud-card {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255, 215, 0, 0.35);
+      padding: 4px 10px;
+      border-radius: 20px;
+      backdrop-filter: blur(4px);
+    }
+
+    .hud-title {
+      color: #ffd700;
+      letter-spacing: 0.5px;
+    }
+
+    /* Indicador de Espada y Gemas */
+    .gems-tracker {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0,0,0,0.7);
+      border: 2px solid #ffd700;
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+
+    .gem-icon {
+      font-size: 16px;
+      opacity: 0.25;
+      filter: grayscale(1);
+      transition: all 0.3s;
+    }
+
+    .gem-icon.unlocked {
+      opacity: 1;
+      filter: grayscale(0) drop-shadow(0 0 6px #fff);
+      animation: pulseGlow 1.5s infinite alternate;
+    }
+
+    @keyframes pulseGlow {
+      from { transform: scale(1); }
+      to { transform: scale(1.25); }
+    }
+
+    /* Superposiciones de Pantalla (Inicio, Niveles, Derrota, Victoria) */
+    .screen-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(10, 14, 28, 0.96);
+      backdrop-filter: blur(6px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      text-align: center;
+      z-index: 100;
+      overflow-y: auto;
+    }
+
+    .screen-overlay h1 {
+      font-size: 30px;
+      color: #ffd700;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      text-shadow: 2px 2px 0 #e94560, 0 0 15px rgba(255,215,0,0.4);
+    }
+
+    .screen-overlay h2 {
+      font-size: 17px;
+      color: #93c5fd;
+      margin-bottom: 12px;
+      font-weight: 500;
+    }
+
+    .story-card {
+      background: rgba(22, 33, 62, 0.85);
+      border: 2px solid #ffd700;
+      border-radius: 12px;
+      padding: 14px 18px;
+      max-width: 660px;
+      margin-bottom: 14px;
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: #e2e8f0;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.6);
+      text-align: left;
+    }
+
+    .story-card strong {
+      color: #ffd700;
+    }
+
+    .level-badge-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      max-width: 660px;
+      margin-bottom: 16px;
+      width: 100%;
+    }
+
+    .level-badge {
+      background: #16213e;
+      border: 1px solid #3282b8;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .primary-btn {
+      background: linear-gradient(45deg, #e94560, #ff6b6b);
+      border: none;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 800;
+      padding: 12px 30px;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 5px 18px rgba(233, 69, 96, 0.6);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .primary-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 8px 24px rgba(233, 69, 96, 0.9);
+    }
+
+    /* Modal de Pregunta y Guardián */
+    #math-modal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(10, 14, 28, 0.93);
+      backdrop-filter: blur(6px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 50;
+      animation: popIn 0.2s ease-out;
+      overflow-y: auto;
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-box {
+      background: linear-gradient(135deg, #16213e, #0f3460);
+      border: 3px solid #ffd700;
+      border-radius: 14px;
+      width: 94%;
+      max-width: 640px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 18px;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.85);
+      text-align: center;
+    }
+
+    .guardian-speech {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(0,0,0,0.35);
+      border-radius: 10px;
+      padding: 8px 12px;
+      margin-bottom: 10px;
+      text-align: left;
+    }
+
+    .guardian-avatar {
+      font-size: 28px;
+      background: #1f4068;
+      border: 2px solid #ffd700;
+      border-radius: 50%;
+      width: 42px;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .guardian-text {
+      font-size: 13px;
+      color: #fef08a;
+      font-style: italic;
+    }
+
+    .modal-tag {
+      display: inline-block;
+      background: #e94560;
+      color: #fff;
+      font-size: 11px;
+      font-weight: bold;
+      padding: 3px 10px;
+      border-radius: 10px;
+      margin-bottom: 6px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .modal-question {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #ffffff;
+      line-height: 1.35;
+    }
+
+    .formula-display {
+      background: #09131e;
+      border: 2px dashed #48cae4;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 18px;
+      font-family: 'Cambria Math', 'Times New Roman', serif;
+      color: #38bdf8;
+      margin-bottom: 12px;
+      font-weight: bold;
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    @media (max-width: 600px) {
+      .options-grid { grid-template-columns: 1fr; }
+      .level-badge-grid { grid-template-columns: 1fr; }
+    }
+
+    .option-btn {
+      background: #1f4068;
+      border: 2px solid #3282b8;
+      color: #fff;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-align: left;
+    }
+
+    .option-btn:hover {
+      background: #00adb5;
+      border-color: #ffd700;
+    }
+
+    .option-btn.correct {
+      background: #16a34a !important;
+      border-color: #86efac !important;
+      color: #fff;
+    }
+
+    .option-btn.wrong {
+      background: #dc2626 !important;
+      border-color: #fca5a5 !important;
+      opacity: 0.75;
+    }
+
+    .feedback-box {
+      font-size: 13px;
+      padding: 8px 12px;
+      border-radius: 8px;
+      margin-top: 8px;
+      display: none;
+      font-weight: 500;
+      text-align: left;
+    }
+
+    .feedback-box.correct {
+      display: block;
+      background: rgba(22, 163, 74, 0.25);
+      border: 1px solid #22c55e;
+      color: #86efac;
+    }
+
+    .feedback-box.wrong {
+      display: block;
+      background: rgba(220, 38, 38, 0.25);
+      border: 1px solid #ef4444;
+      color: #fca5a5;
+    }
+
+    .modal-next-btn {
+      margin-top: 10px;
+      background: #ffd700;
+      color: #000;
+      border: none;
+      padding: 9px 22px;
+      font-size: 14px;
+      font-weight: bold;
+      border-radius: 8px;
+      cursor: pointer;
+      display: none;
+    }
+
+    /* Barra de vida del Dragón (Nivel 4) */
+    #boss-health-bar {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 420px;
+      max-width: 90%;
+      background: rgba(0,0,0,0.85);
+      border: 2px solid #e94560;
+      border-radius: 12px;
+      padding: 6px 12px;
+      display: none;
+      flex-direction: column;
+      gap: 3px;
+      z-index: 15;
+    }
+
+    .boss-name {
+      font-size: 12px;
+      color: #ffd700;
+      font-weight: bold;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .boss-bar-fill {
+      height: 14px;
+      background: linear-gradient(90deg, #dc2626, #ffd700);
+      border-radius: 7px;
+      width: 100%;
+      transition: width 0.3s;
+    }
+
+    /* Botones de control para celular o mouse */
+    #mobile-controls {
+      display: flex;
+      justify-content: space-between;
+      width: 920px;
+      max-width: 96vw;
+      margin-top: 10px;
+      gap: 8px;
+      touch-action: none;
+    }
+
+    .touch-btn-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .touch-btn {
+      background: #1e293b;
+      border: 2px solid #334155;
+      color: #fff;
+      font-size: 15px;
+      font-weight: bold;
+      padding: 10px 18px;
+      border-radius: 10px;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .touch-btn:active {
+      background: #e94560;
+      border-color: #ffd700;
+    }
+
+    #sound-toggle {
+      position: absolute;
+      top: 8px;
+      right: 12px;
+      z-index: 120;
+      background: rgba(0,0,0,0.7);
+      border: 1px solid #ffd700;
+      color: #ffd700;
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <button id="sound-toggle" onclick="toggleSound()">🔊 Sonido: ON</button>
+
+  <div id="game-container">
+    <canvas id="gameCanvas" width="920" height="540"></canvas>
+
+    <!-- HUD Superior -->
+    <div id="hud">
+      <div class="hud-group">
+        <div class="hud-card">
+          <span class="hud-title">NIVEL:</span>
+          <span id="hud-level">1 - 🌍 Tierra</span>
+        </div>
+        <div class="hud-card">
+          <span>❤️</span>
+          <span id="hud-lives">3</span>
+        </div>
+        <div class="hud-card">
+          <span>⭐</span>
+          <span id="hud-score">0</span>
+        </div>
+      </div>
+
+      <!-- Espada Sagrada con 4 Gemas -->
+      <div class="gems-tracker" title="Espada Sagrada: Reúne las 4 Gemas">
+        <span>⚔️ ESPADA:</span>
+        <span id="gem-earth" class="gem-icon" title="Gema de la Tierra (Dominio)">🌍</span>
+        <span id="gem-air" class="gem-icon" title="Gema del Aire (Límites)">💨</span>
+        <span id="gem-water" class="gem-icon" title="Gema del Agua (Continuidad)">💧</span>
+        <span id="gem-fire" class="gem-icon" title="Gema del Fuego (Derivadas)">🔥</span>
+      </div>
+
+      <div class="hud-card">
+        <span>🗝️ RETOS:</span>
+        <span id="hud-keys">0/3</span>
+      </div>
+    </div>
+
+    <!-- Barra de Vida del Dragón (Nivel 4) -->
+    <div id="boss-health-bar">
+      <div class="boss-name">
+        <span>🐉 DRAGÓN DEL ANALISTA CORRUPTO</span>
+        <span id="boss-hp-text">100%</span>
+      </div>
+      <div class="boss-bar-fill" id="boss-bar-fill"></div>
+    </div>
+
+    <!-- PANTALLA 1: INICIO Y NARRATIVA -->
+    <div id="start-screen" class="screen-overlay">
+      <h1>La Mazmorra del Cálculo</h1>
+      <h2>La Leyenda de la Espada y las 4 Gemas Elementales</h2>
+      
+      <div class="story-card">
+        <p>
+          📜 <strong>La Leyenda:</strong> Un recóndito reino forjó una <strong>Espada Sagrada</strong> que, junto al poder de las <strong>4 Gemas Elementales</strong>, posee la fuerza para restaurar la verdad y derrotar a cualquier mal.
+        </p>
+        <p style="margin-top: 6px;">
+          ⚠️ <strong>La Amenaza:</strong> El temible <strong>Analista Corrupto</strong> y su Dragón se refugian en la mazmorra más profunda. Están aterrorizando la ciudad <em>cambiando datos y disfrazando las cifras matemáticas</em> para someter al pueblo.
+        </p>
+        <p style="margin-top: 6px;">
+          🎯 <strong>Misión del Equipo de 4:</strong> Explora los 4 dominios ancestrales, responde los enigmas de los guardianes, recupera las 4 Gemas (Dominio, Límites, Continuidad y Derivadas), forja la Espada y vence al Dragón.
+        </p>
+      </div>
+
+      <div class="level-badge-grid">
+        <div class="level-badge">🌍 <strong>Nivel 1 (Tierra):</strong> Dominio de Funciones</div>
+        <div class="level-badge">💨 <strong>Nivel 2 (Aire):</strong> Límites e Indeterminaciones</div>
+        <div class="level-badge">💧 <strong>Nivel 3 (Agua):</strong> Continuidad de Funciones</div>
+        <div class="level-badge">🔥 <strong>Nivel 4 (Fuego):</strong> Derivadas y Razón de Cambio</div>
+      </div>
+
+      <button class="primary-btn" onclick="startGame()">¡EMPEZAR JUEGO Y SALVAR EL REINO! ⚔️</button>
+      
+      <p style="margin-top: 12px; font-size: 12.5px; color: #94a3b8;">
+        🎮 <strong>Controles:</strong> Flechas / A-D (Moverse) | Espacio / W / Flecha Arriba (Saltar) | Cabecea bloques <strong>[?]</strong>
+      </p>
+    </div>
+
+    <!-- PANTALLA 2: ENTRE NIVELES (GEMA OBTENIDA) -->
+    <div id="level-clear-screen" class="screen-overlay" style="display: none;">
+      <h1 id="clear-title" style="color: #ffd700;">¡GEMA RECUPERADA!</h1>
+      <div style="font-size: 45px; margin: 8px 0;" id="clear-gem-icon">🌍</div>
+      <h2 id="clear-level-name">¡Has obtenido la Gema de la Tierra!</h2>
+      <p id="clear-level-msg" style="max-width: 580px; font-size: 14px; color: #cbd5e1; line-height: 1.5; margin-bottom: 18px;">
+        La gema se ha incrustado en la Espada Sagrada. El poder del Cálculo Diferencial comienza a despertar.
+      </p>
+      <button class="primary-btn" onclick="nextLevel()">AVANZAR AL SIGUIENTE REINO ➡️</button>
+    </div>
+
+    <!-- PANTALLA 3: GAME OVER -->
+    <div id="game-over-screen" class="screen-overlay" style="display: none;">
+      <h1 style="color: #e94560;">¡HAS CAÍDO EN LA MAZMORRA!</h1>
+      <h2>Te has quedado sin vidas</h2>
+      <p style="max-width: 500px; margin-bottom: 18px; color: #e2e8f0; font-size: 14px;">
+        El Analista Corrupto sigue alterando las ecuaciones. ¡Reúne valor, analiza las funciones con cuidado y vuelve a intentarlo!
+      </p>
+      <button class="primary-btn" onclick="restartCurrentLevel()">REINTENTAR NIVEL 🔄</button>
+    </div>
+
+    <!-- PANTALLA 4: VICTORIA FINAL -->
+    <div id="victory-screen" class="screen-overlay" style="display: none;">
+      <h1 style="color: #ffd700;">🏆 ¡VICTORIA ABSOLUTA!</h1>
+      <h2>¡Has derrotado al Dragón y al Analista Corrupto!</h2>
+      <div style="font-size: 40px; margin: 8px 0;">⚔️✨🌍💨💧🔥🐉💥</div>
+      <div class="story-card" style="text-align: center;">
+        <p>
+          ¡La luz de la verdad matemática ha sido restaurada! Con las <strong>4 Gemas Elementales</strong> integradas en la Espada Sagrada, demostraste el poder del <strong>Cálculo Diferencial</strong>:
+        </p>
+        <p style="margin-top: 8px; font-size: 14px; color: #38bdf8; line-height: 1.6;">
+          ✔️ <strong>Tierra:</strong> Determinaste los Dominios sin divisiones por cero ni raíces negativas.<br>
+          ✔️ <strong>Aire:</strong> Superaste las Indeterminaciones calculando Límites exactos.<br>
+          ✔️ <strong>Agua:</strong> Unificaste las funciones garantizando Continuidad en las fronteras.<br>
+          ✔️ <strong>Fuego:</strong> Optimizaste el impacto crítico calculando la Razón de Cambio (Derivada).
+        </p>
+        <p style="margin-top: 10px; font-weight: bold; color: #ffd700;" id="final-score-text">
+          PUNTUACIÓN FINAL: 0 PUNTOS
+        </p>
+      </div>
+      <button class="primary-btn" onclick="startGame()">JUGAR OTRA VEZ 🎮</button>
+    </div>
+
+    <!-- MODAL DE PREGUNTAS MATEMÁTICAS -->
+    <div id="math-modal">
+      <div class="modal-box">
+        <div class="guardian-speech">
+          <div class="guardian-avatar" id="g-avatar">💀</div>
+          <div class="guardian-text" id="g-quote">
+            "¡Para dónde crees que vas, mortal! No serás digno de la Gema hasta responder mi acertijo."
+          </div>
+        </div>
+
+        <span class="modal-tag" id="q-topic">TEMA MATEMÁTICO</span>
+        <div class="modal-question" id="q-text">Pregunta...</div>
+        <div class="formula-display" id="q-formula">f(x) = ...</div>
+        <div class="options-grid" id="q-options"></div>
+        <div class="feedback-box" id="q-feedback"></div>
+        <button class="modal-next-btn" id="q-next-btn" onclick="closeMathModal()">¡CONTINUAR AVENTURA!</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Controles táctiles / móviles / mouse -->
+  <div id="mobile-controls">
+    <div class="touch-btn-group">
+      <button class="touch-btn" id="btn-left">⬅️ Izq</button>
+      <button class="touch-btn" id="btn-right">➡️ Der</button>
+    </div>
+    <div class="touch-btn-group">
+      <button class="touch-btn" id="btn-jump" style="background:#e94560;">⬆️ SALTAR</button>
+    </div>
+  </div>
+
+  <script>
+    /* ==========================================================
+       0. POLYFILL DE SEGURIDAD PARA CANVAS (Compatibilidad total)
+       ========================================================== */
+    if (!CanvasRenderingContext2D.prototype.roundRect) {
+      CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, radii) {
+        if (!radii) radii = 0;
+        if (typeof radii === 'number') radii = [radii, radii, radii, radii];
+        if (!Array.isArray(radii)) radii = [0, 0, 0, 0];
+        const r1 = radii[0] || 0;
+        const r2 = radii[1] || 0;
+        const r3 = radii[2] || 0;
+        const r4 = radii[3] || 0;
+        this.beginPath();
+        this.moveTo(x + r1, y);
+        this.lineTo(x + w - r2, y);
+        this.quadraticCurveTo(x + w, y, x + w, y + r2);
+        this.lineTo(x + w, y + h - r3);
+        this.quadraticCurveTo(x + w, y + h, x + w - r3, y + h);
+        this.lineTo(x + r4, y + h);
+        this.quadraticCurveTo(x, y + h, x, y + h - r4);
+        this.lineTo(x, y + r1);
+        this.quadraticCurveTo(x, y, x + r1, y);
+        this.closePath();
+        return this;
+      };
+    }
+
+    /* ==========================================================
+       1. GENERADOR DE SONIDO 8-BIT SINTETIZADO (WEB AUDIO API)
+       ========================================================== */
+    let audioCtx = null;
+    let soundEnabled = true;
+
+    function initAudio() {
+      if (!soundEnabled) return;
+      try {
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            audioCtx = new AudioContextClass();
+          }
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(function(){});
+        }
+      } catch (err) {
+        // Modo silencioso de respaldo si el navegador bloquea audio
+      }
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      const btn = document.getElementById('sound-toggle');
+      btn.innerText = soundEnabled ? '🔊 Sonido: ON' : '🔇 Sonido: OFF';
+    }
+
+    function playSound(type) {
+      if (!soundEnabled) return;
+      try {
+        initAudio();
+        if (!audioCtx) return;
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'jump') {
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(160, now);
+          osc.frequency.exponentialRampToValueAtTime(480, now + 0.12);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+          osc.start(now);
+          osc.stop(now + 0.12);
+        } else if (type === 'coin') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(987.77, now);
+          osc.frequency.setValueAtTime(1318.51, now + 0.08);
+          gain.gain.setValueAtTime(0.18, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        } else if (type === 'block') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(240, now);
+          osc.frequency.exponentialRampToValueAtTime(120, now + 0.1);
+          gain.gain.setValueAtTime(0.22, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+          osc.start(now);
+          osc.stop(now + 0.1);
+        } else if (type === 'gem') {
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          notes.forEach(function(f, idx) {
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            o.type = 'sine';
+            o.frequency.value = f;
+            o.connect(g);
+            g.connect(audioCtx.destination);
+            g.gain.setValueAtTime(0.18, now + idx * 0.09);
+            g.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.09 + 0.22);
+            o.start(now + idx * 0.09);
+            o.stop(now + idx * 0.09 + 0.22);
+          });
+        } else if (type === 'correct') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.09);
+          osc.frequency.setValueAtTime(783.99, now + 0.18);
+          osc.frequency.setValueAtTime(1046.50, now + 0.27);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.42);
+          osc.start(now);
+          osc.stop(now + 0.42);
+        } else if (type === 'wrong') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(180, now);
+          osc.frequency.setValueAtTime(110, now + 0.16);
+          gain.gain.setValueAtTime(0.25, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+          osc.start(now);
+          osc.stop(now + 0.35);
+        } else if (type === 'dragon_hit') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(100, now);
+          osc.frequency.exponentialRampToValueAtTime(40, now + 0.35);
+          gain.gain.setValueAtTime(0.35, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+          osc.start(now);
+          osc.stop(now + 0.35);
+        }
+      } catch (e) {
+        // Control de errores de audio silencioso
+      }
+    }
+
+    /* ==========================================================
+       2. LOS 4 NIVELES Y BANCO DE DESAFÍOS DIDÁCTICOS
+       ========================================================== */
+    const GAME_LEVELS = [
+      {
+        id: 1,
+        title: "Nivel 1: Gema de la Tierra",
+        topic: "Dominio de Funciones",
+        guardianName: "Esqueleto de las Catacumbas",
+        guardianAvatar: "💀",
+        guardianQuote: "¡Para dónde crees que vas, mortal?! No serás digno de la Gema de la Tierra hasta que no consigas responder acertadamente mis enigmas de dominio.",
+        gemIcon: "🌍",
+        gemColor: "#4ade80",
+        skyColor: "#142914",
+        groundColor: "#3f6212",
+        blockColor: "#a16207",
+        questions: [
+          {
+            topic: "Dominio de Funciones Racionales",
+            text: "El Esqueleto bloquea la entrada con un candado que exige determinar el dominio de:",
+            formula: "f(x) = 7 / (x - 5)",
+            options: [
+              "Todos los reales excepto x = 5: ℝ \\ {5}",
+              "Solo números positivos: (0, ∞)",
+              "Todos los reales excepto x = 0: ℝ \\ {0}",
+              "El intervalo cerrado [5, ∞)"
+            ],
+            correctIndex: 0,
+            explanation: "¡Exacto! El denominador jamás puede ser 0: x - 5 ≠ 0  ⟹  x ≠ 5. Por tanto, el dominio es todo el conjunto de los reales excluyendo al 5."
+          },
+          {
+            topic: "Dominio de Radicales Pares",
+            text: "Para atravesar las raíces de piedra, halla los valores admisibles de:",
+            formula: "g(x) = √(3x - 12)",
+            options: [
+              "(-∞, 4]",
+              "[4, ∞)",
+              "(4, ∞)",
+              "ℝ \\ {4}"
+            ],
+            correctIndex: 1,
+            explanation: "¡Muy bien! Las raíces de índice par solo admiten radicandos no negativos: 3x - 12 ≥ 0  ⟹  3x ≥ 12  ⟹  x ≥ 4. Intervalo: [4, ∞)."
+          },
+          {
+            topic: "Dominio de Funciones Logarítmicas",
+            text: "El cofre de la Gema de la Tierra requiere conocer el dominio exacto de:",
+            formula: "h(x) = ln(2x + 6)",
+            options: [
+              "[-3, ∞)",
+              "(-∞, -3)",
+              "(-3, ∞)",
+              "ℝ \\ {-3}"
+            ],
+            correctIndex: 2,
+            explanation: "¡Excelente! La función logaritmo natural solo está definida para argumentos estrictamente positivos: 2x + 6 > 0  ⟹  2x > -6  ⟹  x > -3. Intervalo: (-3, ∞)."
+          }
+        ]
+      },
+      {
+        id: 2,
+        title: "Nivel 2: Gema del Aire",
+        topic: "Límites e Indeterminaciones",
+        guardianName: "Espíritu de las Tempestades",
+        guardianAvatar: "🌪️",
+        guardianQuote: "Los vientos matemáticos dispersan a los incautos. ¡Calcula la aproximación exacta en el límite o serás arrastrado al abismo!",
+        gemIcon: "💨",
+        gemColor: "#38bdf8",
+        skyColor: "#0f172a",
+        groundColor: "#1e3a8a",
+        blockColor: "#0284c7",
+        questions: [
+          {
+            topic: "Límites por Evaluación Directa",
+            text: "Estabiliza el torbellino calculando el valor del límite por sustitución directa:",
+            formula: "lim (x → 2) [ 4x² - 3x + 1 ]",
+            options: [
+              "11",
+              "15",
+              "9",
+              "14"
+            ],
+            correctIndex: 0,
+            explanation: "¡Correcto! Al evaluar directamente x = 2: 4(2)² - 3(2) + 1 = 4(4) - 6 + 1 = 16 - 6 + 1 = 11."
+          },
+          {
+            topic: "Indeterminación 0/0 (Factorización)",
+            text: "Disipa la niebla resolviendo la indeterminación algebraica de tipo 0/0:",
+            formula: "lim (x → 4) [ (x² - 16) / (x - 4) ]",
+            options: [
+              "0",
+              "4",
+              "8",
+              "Indeterminación irresoluble"
+            ],
+            correctIndex: 2,
+            explanation: "¡Brillante! Factorizando la diferencia de cuadrados: (x - 4)(x + 4)/(x - 4) = x + 4. Evaluando en x = 4: 4 + 4 = 8."
+          },
+          {
+            topic: "Límites al Infinito",
+            text: "Desbloquea la corriente celestial hallando el límite cuando x tiende a infinito:",
+            formula: "lim (x → ∞) [ (6x² + 5) / (2x² - 9) ]",
+            options: [
+              "3",
+              "6",
+              "∞",
+              "0"
+            ],
+            correctIndex: 0,
+            explanation: "¡Genial! Al tener el mismo grado en numerador y denominador (grado 2), el límite al infinito es la razón de sus coeficientes principales: 6 / 2 = 3."
+          }
+        ]
+      },
+      {
+        id: 3,
+        title: "Nivel 3: Gema del Agua",
+        topic: "Continuidad de Funciones",
+        guardianName: "Guardián de los Ríos Sagrados",
+        guardianAvatar: "🧜‍♂️",
+        guardianQuote: "Un flujo que se interrumpe pierde su pureza. Demuestra cómo unir las trayectorias para que no haya grietas ni discontinuidades.",
+        gemIcon: "💧",
+        gemColor: "#06b6d4",
+        skyColor: "#082f49",
+        groundColor: "#0e7490",
+        blockColor: "#0891b2",
+        questions: [
+          {
+            topic: "Criterios de Continuidad Puntual",
+            text: "¿Qué condiciones deben cumplirse simultáneamente para que f(x) sea continua en x = c?",
+            formula: "1) f(c) existe  |  2) lim (x→c) f(x) existe  |  3) lim (x→c) f(x) = f(c)",
+            options: [
+              "Las tres condiciones anteriores deben cumplirse obligatoriamente",
+              "Basta con que exista la imagen f(c)",
+              "Solo importa que los límites laterales sean distintos",
+              "La función no debe tener ninguna variable"
+            ],
+            correctIndex: 0,
+            explanation: "¡Exacto! La definición formal exige que: 1. la función esté definida en el punto, 2. exista el límite bilateral, y 3. ambos valores coincidan exactamente."
+          },
+          {
+            topic: "Tipos de Discontinuidad",
+            text: "¿Qué clase de discontinuidad manifiesta la siguiente función en x = 3?",
+            formula: "f(x) = (x² - 9) / (x - 3)",
+            options: [
+              "Discontinuidad Inevitable de Salto Infinito",
+              "Discontinuidad Evitable o Removible",
+              "Discontinuidad Inevitable de Salto Finito",
+              "Es una función continua en todos los reales"
+            ],
+            correctIndex: 1,
+            explanation: "¡Correcto! Es evitable porque el límite cuando x→3 existe y vale 6, pero f(3) tiene una indeterminación por división entre cero. Puede redefinirse f(3) = 6."
+          },
+          {
+            topic: "Continuidad en Funciones a Trozos",
+            text: "Determina el valor de 'k' para que la función sea continua en la frontera x = 2:",
+            formula: "f(x) = { 3x + k  si x ≤ 2  ;   10  si x > 2 }",
+            options: [
+              "k = 10",
+              "k = 6",
+              "k = 4",
+              "k = -4"
+            ],
+            correctIndex: 2,
+            explanation: "¡Perfecto! Para que sea continua en x = 2, el límite por la izquierda debe igualar al valor por la derecha: 3(2) + k = 10  ⟹  6 + k = 10  ⟹  k = 4."
+          }
+        ]
+      },
+      {
+        id: 4,
+        title: "Nivel 4: Gema del Fuego y Derrotar al Dragón",
+        topic: "Derivadas y Razón de Cambio",
+        guardianName: "El Analista Corrupto y su Dragón",
+        guardianAvatar: "🧙‍♂️",
+        guardianQuote: "¡Insolentes! Con mis datos alterados domino el reino. ¡Jamás podrán calcular la derivada para vulnerar la armadura de mi Dragón!",
+        gemIcon: "🔥",
+        gemColor: "#f97316",
+        skyColor: "#3b0707",
+        groundColor: "#7f1d1d",
+        blockColor: "#b91c1c",
+        questions: [
+          {
+            topic: "Regla de la Potencia (Derivada)",
+            text: "Para debilitar las escamas del dragón, calcula la derivada de la función de potencia:",
+            formula: "f(x) = 5x³ - 4x² + 7x - 9   ⟹   f'(x) = ?",
+            options: [
+              "f'(x) = 15x² - 8x + 7",
+              "f'(x) = 5x² - 4x + 7",
+              "f'(x) = 15x³ - 8x² + 7x",
+              "f'(x) = 15x² - 8x"
+            ],
+            correctIndex: 0,
+            explanation: "¡Impacto certero! Aplicando la regla d/dx[xⁿ] = n·xⁿ⁻¹: 5(3x²) - 4(2x) + 7(1) - 0 = 15x² - 8x + 7."
+          },
+          {
+            topic: "Razón de Cambio Instantánea",
+            text: "Halla la velocidad instantánea de ataque calculando la pendiente de la tangente en x = 2:",
+            formula: "f(x) = 3x² + 2x   ⟹   f'(2) = ?",
+            options: [
+              "12",
+              "14",
+              "16",
+              "10"
+            ],
+            correctIndex: 1,
+            explanation: "¡Golpe crítico! La derivada es f'(x) = 6x + 2. Evaluando en x = 2: f'(2) = 6(2) + 2 = 12 + 2 = 14."
+          },
+          {
+            topic: "Derivada de Funciones Exponenciales",
+            text: "Golpe final a la magia del analista corrupto: calcula la derivada de:",
+            formula: "f(x) = 4 · e^(3x)   ⟹   f'(x) = ?",
+            options: [
+              "f'(x) = 4 · e^(3x)",
+              "f'(x) = 12 · e^(3x)",
+              "f'(x) = 12x · e^(3x)",
+              "f'(x) = 7 · e^(3x)"
+            ],
+            correctIndex: 1,
+            explanation: "¡Victoria matemática! Por la regla de la cadena d/dx[e^(u)] = e^(u) · u': 4 · e^(3x) · 3 = 12·e^(3x)."
+          }
+        ]
+      }
+    ];
+
+    /* ==========================================================
+       3. ESTADO DEL JUEGO
+       ========================================================== */
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let currentLevelIndex = 0;
+    let score = 0;
+    let lives = 3;
+    let isPaused = false;
+    let gameLoopId = null;
+
+    const gemsWon = {
+      earth: false,
+      air: false,
+      water: false,
+      fire: false
+    };
+
+    const keys = { left: false, right: false, jump: false };
+
+    function touchInput(type, state) {
+      initAudio();
+      if (type === 'left') keys.left = state;
+      if (type === 'right') keys.right = state;
+      if (type === 'jump') {
+        keys.jump = state;
+        if (state && player.grounded && !isPaused) {
+          player.vy = -player.jumpStrength;
+          player.grounded = false;
+          playSound('jump');
+        }
+      }
+    }
+
+    const player = {
+      x: 50,
+      y: 380,
+      w: 30,
+      h: 38,
+      vx: 0,
+      vy: 0,
+      speed: 4.8,
+      jumpStrength: 13.5,
+      grounded: false,
+      facing: 'right',
+      animFrame: 0,
+      animTimer: 0
+    };
+
+    let platforms = [];
+    let questionBlocks = [];
+    let coins = [];
+    let portal = { x: 825, y: 370, w: 55, h: 70, open: false };
+    let particles = [];
+    let dragonBoss = { x: 700, y: 220, w: 120, h: 90, hp: 100, alive: true };
+
+    function setupLevel(index) {
+      const lvl = GAME_LEVELS[index];
+      player.x = 50;
+      player.y = 380;
+      player.vx = 0;
+      player.vy = 0;
+      player.grounded = false;
+      particles = [];
+
+      document.getElementById('hud-level').innerText = `${lvl.id} - ${lvl.gemIcon} ${lvl.topic.split(' ')[0]}`;
+      document.getElementById('hud-lives').innerText = lives;
+      document.getElementById('hud-score').innerText = score;
+      document.getElementById('hud-keys').innerText = `0/3`;
+
+      const bossBar = document.getElementById('boss-health-bar');
+      if (lvl.id === 4) {
+        bossBar.style.display = 'flex';
+        dragonBoss.hp = 100;
+        dragonBoss.alive = true;
+        updateBossUI();
+      } else {
+        bossBar.style.display = 'none';
+      }
+
+      platforms = [
+        { x: 0, y: 440, w: 920, h: 100, type: 'ground' },
+        { x: 130, y: 330, w: 100, h: 20 },
+        { x: 270, y: 250, w: 130, h: 20 },
+        { x: 450, y: 320, w: 120, h: 20 },
+        { x: 600, y: 240, w: 110, h: 20 },
+        { x: 740, y: 360, w: 130, h: 20 }
+      ];
+
+      questionBlocks = [
+        { x: 170, y: 210, w: 34, h: 34, qIndex: 0, solved: false, attempts: 0, bumpOffset: 0 },
+        { x: 330, y: 130, w: 34, h: 34, qIndex: 1, solved: false, attempts: 0, bumpOffset: 0 },
+        { x: 650, y: 120, w: 34, h: 34, qIndex: 2, solved: false, attempts: 0, bumpOffset: 0 }
+      ];
+
+      coins = [
+        { x: 150, y: 290, r: 8, collected: false },
+        { x: 190, y: 290, r: 8, collected: false },
+        { x: 310, y: 210, r: 8, collected: false },
+        { x: 350, y: 210, r: 8, collected: false },
+        { x: 490, y: 270, r: 8, collected: false },
+        { x: 530, y: 270, r: 8, collected: false },
+        { x: 630, y: 190, r: 8, collected: false },
+        { x: 670, y: 190, r: 8, collected: false }
+      ];
+
+      portal = { x: 825, y: 370, w: 55, h: 70, open: false };
+    }
+
+    function updateBossUI() {
+      document.getElementById('boss-hp-text').innerText = `${dragonBoss.hp}%`;
+      document.getElementById('boss-bar-fill').style.width = `${dragonBoss.hp}%`;
+    }
+
+    function createParticles(x, y, color, count) {
+      if (!count) count = 10;
+      for (let i = 0; i < count; i++) {
+        particles.push({
+          x: x,
+          y: y,
+          vx: (Math.random() - 0.5) * 7,
+          vy: (Math.random() - 0.5) * 7 - 2,
+          radius: Math.random() * 3.5 + 2,
+          color: color,
+          life: 1
+        });
+      }
+    }
+
+    /* ==========================================================
+       4. BUCLE DE FÍSICAS
+       ========================================================== */
+    const GRAVITY = 0.65;
+
+    function update() {
+      if (isPaused) return;
+
+      if (keys.left) {
+        player.vx = -player.speed;
+        player.facing = 'left';
+      } else if (keys.right) {
+        player.vx = player.speed;
+        player.facing = 'right';
+      } else {
+        player.vx = 0;
+      }
+
+      if (player.vx !== 0 && player.grounded) {
+        player.animTimer++;
+        if (player.animTimer > 7) {
+          player.animFrame = (player.animFrame + 1) % 4;
+          player.animTimer = 0;
+        }
+      } else if (player.grounded) {
+        player.animFrame = 0;
+      }
+
+      player.vy += GRAVITY;
+
+      player.x += player.vx;
+      if (player.x < 0) player.x = 0;
+      if (player.x + player.w > canvas.width) player.x = canvas.width - player.w;
+
+      player.y += player.vy;
+      player.grounded = false;
+
+      // Colisión plataformas
+      for (let i = 0; i < platforms.length; i++) {
+        const p = platforms[i];
+        if (
+          player.x + player.w > p.x &&
+          player.x < p.x + p.w &&
+          player.y + player.h >= p.y &&
+          player.y + player.h <= p.y + player.vy + 10 &&
+          player.vy >= 0
+        ) {
+          player.y = p.y - player.h;
+          player.vy = 0;
+          player.grounded = true;
+        }
+      }
+
+      // Colisión bloques interrogación
+      for (let i = 0; i < questionBlocks.length; i++) {
+        const b = questionBlocks[i];
+        // Cabezazo
+        if (
+          player.x + player.w > b.x + 4 &&
+          player.x < b.x + b.w - 4 &&
+          player.y <= b.y + b.h &&
+          player.y >= b.y + b.h - 14 &&
+          player.vy < 0
+        ) {
+          player.y = b.y + b.h;
+          player.vy = 2;
+          b.bumpOffset = -9;
+          playSound('block');
+
+          if (!b.solved) {
+            triggerMathQuestion(b);
+          }
+        }
+
+        // Caminar encima
+        if (
+          player.x + player.w > b.x &&
+          player.x < b.x + b.w &&
+          player.y + player.h >= b.y &&
+          player.y + player.h <= b.y + player.vy + 10 &&
+          player.vy >= 0
+        ) {
+          player.y = b.y - player.h;
+          player.vy = 0;
+          player.grounded = true;
+        }
+
+        if (b.bumpOffset < 0) {
+          b.bumpOffset += 1.5;
+          if (b.bumpOffset > 0) b.bumpOffset = 0;
+        }
+      }
+
+      // Monedas
+      for (let i = 0; i < coins.length; i++) {
+        const c = coins[i];
+        if (!c.collected) {
+          const dx = (player.x + player.w / 2) - c.x;
+          const dy = (player.y + player.h / 2) - c.y;
+          if (Math.hypot(dx, dy) < player.w / 2 + c.r) {
+            c.collected = true;
+            score += 50;
+            document.getElementById('hud-score').innerText = score;
+            createParticles(c.x, c.y, '#ffd700', 8);
+            playSound('coin');
+          }
+        }
+      }
+
+      const solvedCount = questionBlocks.filter(function(b){ return b.solved; }).length;
+      document.getElementById('hud-keys').innerText = `${solvedCount}/3`;
+
+      if (solvedCount === 3 && !portal.open) {
+        portal.open = true;
+        const lvl = GAME_LEVELS[currentLevelIndex];
+        createParticles(portal.x + portal.w / 2, portal.y + portal.h / 2, lvl.gemColor, 30);
+        playSound('gem');
+
+        if (lvl.id === 4) {
+          dragonBoss.hp = 0;
+          dragonBoss.alive = false;
+          updateBossUI();
+        }
+      }
+
+      if (
+        portal.open &&
+        player.x + player.w > portal.x &&
+        player.x < portal.x + portal.w &&
+        player.y + player.h > portal.y &&
+        player.y < portal.y + portal.h
+      ) {
+        finishLevel();
+      }
+
+      if (player.y > canvas.height + 50) {
+        loseLife();
+      }
+
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const pt = particles[i];
+        pt.x += pt.vx;
+        pt.y += pt.vy;
+        pt.life -= 0.03;
+        if (pt.life <= 0) particles.splice(i, 1);
+      }
+    }
+
+    function loseLife() {
+      lives--;
+      document.getElementById('hud-lives').innerText = lives;
+      playSound('wrong');
+      if (lives <= 0) {
+        isPaused = true;
+        document.getElementById('game-over-screen').style.display = 'flex';
+      } else {
+        player.x = 50;
+        player.y = 380;
+        player.vx = 0;
+        player.vy = 0;
+      }
+    }
+
+    /* ==========================================================
+       5. DIBUJADO EN CANVAS
+       ========================================================== */
+    function draw() {
+      const lvl = GAME_LEVELS[currentLevelIndex];
+
+      ctx.fillStyle = lvl.skyColor;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Fondos elementales
+      if (lvl.id === 1) {
+        ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+        ctx.beginPath();
+        ctx.arc(200, 480, 190, Math.PI, 0);
+        ctx.arc(650, 480, 240, Math.PI, 0);
+        ctx.fill();
+      } else if (lvl.id === 2) {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.08)";
+        ctx.fillRect(0, 100, canvas.width, 30);
+        ctx.fillRect(0, 220, canvas.width, 40);
+      } else if (lvl.id === 3) {
+        ctx.fillStyle = "rgba(6, 182, 212, 0.15)";
+        for (let i = 0; i < 10; i++) {
+          ctx.beginPath();
+          ctx.moveTo(i * 100, 0);
+          ctx.lineTo(i * 100 + 40, 70);
+          ctx.lineTo(i * 100 + 80, 0);
+          ctx.fill();
+        }
+      } else if (lvl.id === 4) {
+        ctx.fillStyle = "rgba(239, 68, 68, 0.2)";
+        ctx.fillRect(0, 460, canvas.width, 80);
+        drawDragon();
+      }
+
+      // Plataformas
+      for (let i = 0; i < platforms.length; i++) {
+        const p = platforms[i];
+        if (p.type === 'ground') {
+          ctx.fillStyle = lvl.groundColor;
+          ctx.fillRect(p.x, p.y, p.w, p.h);
+          ctx.fillStyle = "rgba(0,0,0,0.25)";
+          ctx.fillRect(p.x, p.y, p.w, 8);
+        } else {
+          ctx.fillStyle = "#1e293b";
+          ctx.fillRect(p.x, p.y, p.w, p.h);
+          ctx.strokeStyle = lvl.gemColor;
+          ctx.lineWidth = 2;
+          ctx.strokeRect(p.x, p.y, p.w, p.h);
+        }
+      }
+
+      // Bloques interrogación
+      for (let i = 0; i < questionBlocks.length; i++) {
+        const b = questionBlocks[i];
+        const renderY = b.y + b.bumpOffset;
+        if (b.solved) {
+          ctx.fillStyle = "#475569";
+          ctx.fillRect(b.x, renderY, b.w, b.h);
+          ctx.strokeStyle = "#94a3b8";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(b.x, renderY, b.w, b.h);
+
+          ctx.fillStyle = "#22c55e";
+          ctx.font = "bold 18px Arial";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("✓", b.x + b.w / 2, renderY + b.h / 2);
+        } else {
+          ctx.fillStyle = lvl.blockColor;
+          ctx.fillRect(b.x, renderY, b.w, b.h);
+          ctx.strokeStyle = "#ffd700";
+          ctx.lineWidth = 3;
+          ctx.strokeRect(b.x, renderY, b.w, b.h);
+
+          ctx.fillStyle = "#fff";
+          ctx.font = "bold 20px Arial";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText("?", b.x + b.w / 2, renderY + b.h / 2);
+        }
+      }
+
+      // Monedas
+      for (let i = 0; i < coins.length; i++) {
+        const c = coins[i];
+        if (!c.collected) {
+          ctx.fillStyle = "#ffd700";
+          ctx.beginPath();
+          ctx.arc(c.x, c.y, c.r, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = "#b45309";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      }
+
+      // Portal
+      drawPortalAndGem(lvl);
+
+      // Partículas
+      for (let i = 0; i < particles.length; i++) {
+        const pt = particles[i];
+        ctx.fillStyle = pt.color;
+        ctx.globalAlpha = Math.max(0, pt.life);
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, pt.radius, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1.0;
+
+      // Héroe
+      drawHero();
+    }
+
+    function drawDragon() {
+      if (!dragonBoss.alive) return;
+      ctx.save();
+      const dx = dragonBoss.x;
+      const dy = dragonBoss.y + Math.sin(Date.now() / 300) * 8;
+
+      ctx.fillStyle = "#dc2626";
+      ctx.beginPath();
+      ctx.ellipse(dx + 60, dy + 50, 50, 35, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#991b1b";
+      ctx.beginPath();
+      ctx.arc(dx + 25, dy + 35, 25, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = "#ffd700";
+      ctx.beginPath();
+      ctx.moveTo(dx + 20, dy + 15);
+      ctx.lineTo(dx + 10, dy - 15);
+      ctx.lineTo(dx + 30, dy + 10);
+      ctx.fill();
+
+      ctx.fillStyle = "#fef08a";
+      ctx.beginPath();
+      ctx.arc(dx + 18, dy + 32, 5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#000";
+      ctx.fillRect(dx + 16, dy + 30, 2, 4);
+
+      ctx.fillStyle = "#7f1d1d";
+      ctx.beginPath();
+      ctx.moveTo(dx + 60, dy + 25);
+      ctx.lineTo(dx + 100, dy - 20);
+      ctx.lineTo(dx + 110, dy + 35);
+      ctx.fill();
+
+      ctx.fillStyle = "rgba(249, 115, 22, 0.4)";
+      ctx.beginPath();
+      ctx.arc(dx - 15, dy + 45, 18, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function drawPortalAndGem(lvl) {
+      ctx.save();
+      if (portal.open) {
+        ctx.fillStyle = lvl.gemColor;
+        ctx.shadowColor = lvl.gemColor;
+        ctx.shadowBlur = 18;
+      } else {
+        ctx.fillStyle = "#475569";
+      }
+
+      ctx.beginPath();
+      ctx.roundRect(portal.x, portal.y, portal.w, portal.h, [25, 25, 0, 0]);
+      ctx.fill();
+      ctx.restore();
+
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 20px Arial";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      if (portal.open) {
+        ctx.fillText(lvl.gemIcon, portal.x + portal.w / 2, portal.y + portal.h / 2 - 5);
+        ctx.font = "bold 11px Arial";
+        ctx.fillText("ENTRAR", portal.x + portal.w / 2, portal.y + portal.h / 2 + 18);
+      } else {
+        ctx.fillText("🔒", portal.x + portal.w / 2, portal.y + portal.h / 2);
+      }
+    }
+
+    function drawHero() {
+      ctx.save();
+      const px = player.x;
+      const py = player.y;
+
+      ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
+      ctx.beginPath();
+      ctx.ellipse(px + player.w / 2, py + player.h, player.w / 2, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Capucha de héroe
+      ctx.fillStyle = "#3b82f6";
+      ctx.fillRect(px + 4, py + 2, 22, 10);
+
+      // Rostro
+      ctx.fillStyle = "#fde047";
+      ctx.fillRect(px + 6, py + 12, 18, 10);
+
+      // Ojos
+      ctx.fillStyle = "#000";
+      const eyeX = player.facing === 'right' ? px + 18 : px + 10;
+      ctx.fillRect(eyeX, py + 14, 3, 4);
+
+      // Túnica
+      ctx.fillStyle = "#1e40af";
+      ctx.fillRect(px + 4, py + 22, 22, 10);
+
+      // Espada
+      ctx.fillStyle = "#ffd700";
+      const swordX = player.facing === 'right' ? px + player.w - 2 : px - 6;
+      ctx.fillRect(swordX, py + 12, 4, 18);
+      ctx.fillStyle = "#e2e8f0";
+      ctx.fillRect(swordX - 2, py + 18, 8, 3);
+
+      // Piernas
+      ctx.fillStyle = "#0f172a";
+      if (!player.grounded) {
+        ctx.fillRect(px + 4, py + 32, 8, 6);
+        ctx.fillRect(px + 18, py + 30, 8, 6);
+      } else if (player.vx !== 0) {
+        const legShift = (player.animFrame % 2 === 0) ? 3 : -3;
+        ctx.fillRect(px + 5 + legShift, py + 32, 8, 6);
+        ctx.fillRect(px + 17 - legShift, py + 32, 8, 6);
+      } else {
+        ctx.fillRect(px + 6, py + 32, 8, 6);
+        ctx.fillRect(px + 16, py + 32, 8, 6);
+      }
+
+      ctx.restore();
+    }
+
+    /* ==========================================================
+       6. MODAL MATEMÁTICO
+       ========================================================== */
+    let currentActiveBlock = null;
+
+    function triggerMathQuestion(block) {
+      isPaused = true;
+      currentActiveBlock = block;
+      const lvl = GAME_LEVELS[currentLevelIndex];
+      const q = lvl.questions[block.qIndex];
+
+      document.getElementById('g-avatar').innerText = lvl.guardianAvatar;
+      document.getElementById('g-quote').innerText = `"${lvl.guardianQuote}"`;
+
+      document.getElementById('q-topic').innerText = `${lvl.gemIcon} ${q.topic}`;
+      document.getElementById('q-text').innerText = q.text;
+      document.getElementById('q-formula').innerText = q.formula;
+
+      const optsContainer = document.getElementById('q-options');
+      optsContainer.innerHTML = '';
+
+      const feedback = document.getElementById('q-feedback');
+      feedback.className = 'feedback-box';
+      feedback.style.display = 'none';
+      document.getElementById('q-next-btn').style.display = 'none';
+
+      // Se barajan las opciones en cada intento para evitar adivinar por eliminación
+      const order = q.options.map(function(_, i){ return i; });
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const tmp = order[i]; order[i] = order[j]; order[j] = tmp;
+      }
+      const shuffledQ = {
+        topic: q.topic,
+        explanation: q.explanation,
+        options: order.map(function(k){ return q.options[k]; }),
+        correctIndex: order.indexOf(q.correctIndex)
+      };
+      shuffledQ.options.forEach(function(optText, i) {
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.innerHTML = `<strong>${String.fromCharCode(65 + i)})</strong> ${optText}`;
+        btn.onclick = function() { handleAnswerSelect(i, shuffledQ, btn); };
+        optsContainer.appendChild(btn);
+      });
+
+      document.getElementById('math-modal').style.display = 'flex';
+    }
+
+    function handleAnswerSelect(selectedIdx, q, clickedBtn) {
+      const opts = document.querySelectorAll('.option-btn');
+      opts.forEach(function(b){ b.disabled = true; });
+
+      const feedback = document.getElementById('q-feedback');
+
+      if (selectedIdx === q.correctIndex) {
+        clickedBtn.classList.add('correct');
+        feedback.className = 'feedback-box correct';
+        feedback.innerHTML = `🌟 <strong>¡Respuesta Exacta!</strong><br>${q.explanation}`;
+        score += (currentActiveBlock.attempts === 0) ? 200 : 100;
+        document.getElementById('hud-score').innerText = score;
+        currentActiveBlock.solved = true;
+        document.getElementById('q-next-btn').innerText = '¡CONTINUAR AVENTURA!';
+        createParticles(currentActiveBlock.x + 16, currentActiveBlock.y + 16, '#22c55e', 16);
+        playSound('correct');
+
+        if (GAME_LEVELS[currentLevelIndex].id === 4) {
+          dragonBoss.hp = Math.max(0, dragonBoss.hp - 34);
+          updateBossUI();
+          playSound('dragon_hit');
+        }
+      } else {
+        clickedBtn.classList.add('wrong');
+        feedback.className = 'feedback-box wrong';
+        feedback.innerHTML = `⚠️ <strong>Respuesta Errónea:</strong> pierdes una vida.<br>Revisa tu procedimiento y vuelve a golpear el bloque para reintentar (el reintento vale 100 puntos).`;
+        playSound('wrong');
+        lives--;
+        document.getElementById('hud-lives').innerText = lives;
+        currentActiveBlock.attempts++;
+        document.getElementById('q-next-btn').innerText = 'VOLVER A INTENTAR';
+      }
+
+      document.getElementById('q-next-btn').style.display = 'inline-block';
+    }
+
+    function closeMathModal() {
+      document.getElementById('math-modal').style.display = 'none';
+      isPaused = false;
+
+      if (lives <= 0) {
+        isPaused = true;
+        document.getElementById('game-over-screen').style.display = 'flex';
+      }
+    }
+
+    /* ==========================================================
+       7. FLUJO ENTRE NIVELES
+       ========================================================== */
+    function startGame() {
+      initAudio();
+      document.getElementById('start-screen').style.display = 'none';
+      document.getElementById('game-over-screen').style.display = 'none';
+      document.getElementById('victory-screen').style.display = 'none';
+      document.getElementById('level-clear-screen').style.display = 'none';
+
+      currentLevelIndex = 0;
+      score = 0;
+      lives = 3;
+      isPaused = false;
+
+      gemsWon.earth = false;
+      gemsWon.air = false;
+      gemsWon.water = false;
+      gemsWon.fire = false;
+      updateGemHUD();
+
+      setupLevel(currentLevelIndex);
+
+      if (!gameLoopId) {
+        gameLoop();
+      }
+    }
+
+    function updateGemHUD() {
+      document.getElementById('gem-earth').className = 'gem-icon' + (gemsWon.earth ? ' unlocked' : '');
+      document.getElementById('gem-air').className = 'gem-icon' + (gemsWon.air ? ' unlocked' : '');
+      document.getElementById('gem-water').className = 'gem-icon' + (gemsWon.water ? ' unlocked' : '');
+      document.getElementById('gem-fire').className = 'gem-icon' + (gemsWon.fire ? ' unlocked' : '');
+    }
+
+    function restartCurrentLevel() {
+      document.getElementById('game-over-screen').style.display = 'none';
+      lives = 3;
+      isPaused = false;
+      setupLevel(currentLevelIndex);
+    }
+
+    function finishLevel() {
+      isPaused = true;
+      playSound('gem');
+
+      if (currentLevelIndex === 0) gemsWon.earth = true;
+      if (currentLevelIndex === 1) gemsWon.air = true;
+      if (currentLevelIndex === 2) gemsWon.water = true;
+      if (currentLevelIndex === 3) gemsWon.fire = true;
+      updateGemHUD();
+
+      if (currentLevelIndex < GAME_LEVELS.length - 1) {
+        const finishedLvl = GAME_LEVELS[currentLevelIndex];
+        const nextLvl = GAME_LEVELS[currentLevelIndex + 1];
+
+        document.getElementById('clear-gem-icon').innerText = finishedLvl.gemIcon;
+        document.getElementById('clear-level-name').innerText = `¡Has obtenido la ${finishedLvl.title.split(':')[1]}!`;
+        document.getElementById('clear-level-msg').innerHTML = `
+          La gema elemental se ha incrustado en la <strong>Espada Sagrada</strong>.<br>
+          Has dominado los conceptos de <strong>${finishedLvl.topic}</strong>.<br><br>
+          Próximo desafío: <strong>${nextLvl.title}</strong> (${nextLvl.topic}).
+        `;
+        document.getElementById('level-clear-screen').style.display = 'flex';
+      } else {
+        document.getElementById('final-score-text').innerText = `⭐ PUNTUACIÓN TOTAL: ${score} PUNTOS | VIDAS RESTANTES: ${lives} ❤️`;
+        document.getElementById('victory-screen').style.display = 'flex';
+      }
+    }
+
+    function nextLevel() {
+      document.getElementById('level-clear-screen').style.display = 'none';
+      currentLevelIndex++;
+      isPaused = false;
+      setupLevel(currentLevelIndex);
+    }
+
+    function gameLoop() {
+      update();
+      draw();
+      gameLoopId = requestAnimationFrame(gameLoop);
+    }
+
+    /* ==========================================================
+       8. CONTROLES DE ENTRADA (TECLADO Y TOUCH RESISTENTE)
+       ========================================================== */
+    window.addEventListener('keydown', function(e) {
+      initAudio();
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = true;
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = true;
+      if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+        if (!keys.jump && player.grounded && !isPaused) {
+          player.vy = -player.jumpStrength;
+          player.grounded = false;
+          playSound('jump');
+        }
+        keys.jump = true;
+      }
+    });
+
+    window.addEventListener('keyup', function(e) {
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.left = false;
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.right = false;
+      if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') keys.jump = false;
+    });
+
+    // Enlace de botones táctiles con prevención de gestos indeseados
+    function bindTouch(id, action) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      function onStart(e) {
+        if (e.cancelable) e.preventDefault();
+        touchInput(action, true);
+      }
+      function onEnd(e) {
+        if (e.cancelable) e.preventDefault();
+        touchInput(action, false);
+      }
+      el.addEventListener('mousedown', onStart);
+      el.addEventListener('mouseup', onEnd);
+      el.addEventListener('mouseleave', onEnd);
+      el.addEventListener('touchstart', onStart, { passive: false });
+      el.addEventListener('touchend', onEnd, { passive: false });
+      el.addEventListener('touchcancel', onEnd, { passive: false });
+    }
+
+    bindTouch('btn-left', 'left');
+    bindTouch('btn-right', 'right');
+    bindTouch('btn-jump', 'jump');
+
+    // Inicialización
+    setupLevel(0);
+    draw();
+  </script>
+</body>
+</html>
